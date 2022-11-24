@@ -15,12 +15,14 @@ getReply = (option_key = '', callback) => connection.query(
     `SELECT * FROM ${DATABASE_NAME}.response WHERE option_key = '${option_key}'  LIMIT 1`,
     (error, results
         ) => {
-    const [response] = results;
-    console.log(response)
+    const [response] = results; 
     const value = {
+        column:response?.column || '',
+        option_key:response?.option_key || '',
         replyMessage:response?.replyMessage || '',
         trigger:response?.trigger || '',
-        media:response?.media || ''
+        media:response?.media || '',
+        next:response?.next || ''
      
     }
     callback(value)
@@ -33,12 +35,14 @@ getMessages = ( number ) => new Promise((resolve,reejct) => {
             if(error) {
                 console.log(error)
             }
-            const [response] = results;
-            console.log(response)
+            const [response] = results; 
             const value = {
+                column:response?.column || '',
+                option_key:response?.option_key || '',
                 replyMessage:response?.replyMessage || '',
                 trigger:response?.trigger || '',
-                media:response?.media || ''
+                media:response?.media || '',
+                next:response?.next || ''
             }
             resolve(value)
         })
@@ -62,8 +66,7 @@ saveMessageMysql = ( message, date, trigger, number ) => new Promise((resolve,re
                 //     })
                 // }
             }
-            console.log('Saved')
-            console.log( results )
+            console.log('Saved') 
             resolve(results)
         })
     } catch (error) {
@@ -71,4 +74,74 @@ saveMessageMysql = ( message, date, trigger, number ) => new Promise((resolve,re
     }
 })
 
-module.exports = {getData, getReply, saveMessageMysql}
+createCotizacion = ( message, date, trigger, number, step) => new Promise((resolve,reejct) => { 
+    try {
+        connection.query(
+        `INSERT INTO cotizacion  `+"(`usuario`, `step`)"+` VALUES ('${number}', 'STEP_2')` , (error, results) => {
+            if(error) {  
+                console.log('DEBES DE CREAR LA TABLA DE MESSAGE') 
+            }
+            console.log('Saved') 
+            resolve(results)
+        })
+    } catch (error) {
+        
+    }
+})
+
+CotizacionExists = (number) => {
+    return new Promise((resolve) => {
+      connection.query(
+        'SELECT usuario FROM cotizacion WHERE usuario = ? AND step != "GRACIAS" LIMIT 1',
+        [number],
+        (error, result) => {
+          if (error) return reject(error);
+  
+          if (result && result[0]) { 
+            return resolve(true);
+          }
+  
+          return resolve(false);
+        });
+    });
+};
+
+getNextStepData = (number) => {
+    return new Promise((resolve) => {
+      connection.query(
+        'SELECT * FROM cotizacion WHERE usuario = ? AND step != "GRACIAS" LIMIT 1',
+        [number],
+        (error, result) => {
+          if (error) return reject(error);
+  
+          if (result && result[0]) {  
+            return resolve(result[0]);
+          }
+  
+          return resolve(false);
+        });
+    });
+};
+
+
+saveMessageData = ( message, trigger, number, step = null, next ) => new Promise((resolve,reejct) => { 
+    try { 
+        if(step){
+            connection.query(
+                `UPDATE ${DATABASE_NAME}.cotizacion SET ${step} = '${message}', step = '${next}'  WHERE usuario = '${number}' AND step != "GRACIAS"` , (error, results) => {
+                    if(error) {
+                       console.log(error); 
+                    }
+                    console.log('Saved') 
+                    resolve(results)
+                })
+        } else {
+            resolve()
+        }
+         
+    } catch (error) {
+        
+    }
+})
+
+module.exports = {getData, getReply, saveMessageMysql, CotizacionExists, createCotizacion, getNextStepData, saveMessageData}

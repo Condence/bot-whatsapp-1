@@ -54,12 +54,12 @@ const sendMedia = (client, number = null, fileName = null) => {
  * Enviamos un mensaje simple (texto) a nuestro cliente
  * @param {*} number 
  */
-const sendMessage = async (client, number = null, text = null, trigger = null) => {
+const sendMessage = async (client, number = null, text = null, trigger = null, step = null, next = null) => {
    setTimeout(async () => {
     number = cleanNumber(number)
     const message = text
     client.sendMessage(number, message);
-    await readChat(number, message, trigger)
+    await readChat(number, message, trigger, step, next)
     console.log(`⚡⚡⚡ Enviando mensajes....`);
    },DELAY_TIME)
 }
@@ -104,10 +104,9 @@ const lastTrigger = (number) => new Promise((resolve, reject) => {
  * @param {*} number 
  * @param {*} message 
  */
-const readChat = async (number, message, trigger = null) => {
+const readChat = async (number, message, trigger = null, step = null, next = null) => {
     number = cleanNumber(number)
-    await saveMessage( message, trigger, number )
-    console.log('Saved')
+    await saveMessage( message, trigger, number, step, null)
 }
 
 module.exports = { sendMessage, sendMedia, lastTrigger, sendMessageButton, readChat, sendMediaVoiceNote }

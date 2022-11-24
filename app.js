@@ -14,6 +14,7 @@ const { connectionReady, connectionLost } = require('./controllers/connection')
 const { saveMedia } = require('./controllers/save')
 const { getMessages, responseMessages, bothResponse } = require('./controllers/flows')
 const { sendMedia, sendMessage, lastTrigger, sendMessageButton, readChat } = require('./controllers/send')
+const { getNextStep, saveMessage} = require('./adapter/index')
 const app = express();
 app.use(cors())
 app.use(express.json())
@@ -39,7 +40,7 @@ const listenMessage = () => client.on('message', async msg => {
         return
     }
     message = body.toLowerCase();
-    console.log('BODY',message)
+   // console.log('BODY',message)
     const number = cleanNumber(from)
     await readChat(number, message)
 
@@ -89,7 +90,7 @@ const listenMessage = () => client.on('message', async msg => {
          * Si quieres enviar botones
          */
 
-        await sendMessage(client, from, response.replyMessage, response.trigger);
+        await sendMessage(client, from, response.replyMessage, response.trigger, step);
 
         if(response.hasOwnProperty('actions')){
             const { actions } = response;
@@ -106,6 +107,47 @@ const listenMessage = () => client.on('message', async msg => {
             }, response.delay)
         }
         return
+    } else { 
+        const array = [1,2,3,4];
+        const next_step = await getNextStep(number); 
+        let response = await responseMessages(next_step.step);
+        let error = false;
+        console.log(response);
+        if(next_step.step == "STEP_2"){ 
+            if(array.some(e=>message.includes(e))){ 
+                if(message == 1){
+                    await saveMessage(message,  null, number, next_step.step, "STEP_3_1");
+               } 
+            } else {
+                error = true;
+                const response = await responseMessages("ERROR_STEP_3_1");   
+                await sendMessage(client, from, response.replyMessage); 
+            }
+        }  else {
+            if(next_step.step == "STEP_3_1"){
+                if(message == 1){
+                    await saveMessage(message,  null, number, next_step.step, "STEP_3_1_1");
+                    let response = await responseMessages("STEP_3_1_1");
+                    await sendMessage(client, from, response.replyMessage);
+                } else {
+                    await saveMessage(message,  null, number, next_step.step, response.next);
+                }
+            } else { 
+                if(next_step.step != "STEP_2"){
+                    let response = await responseMessages(next_step.step); 
+                    await saveMessage(message,  null, number, next_step.step, response.next, response.column );
+                }    
+            }
+        }
+
+        response = await responseMessages(response.next);
+      
+        if(!error){
+            await sendMessage(client, from, response.replyMessage);
+        } 
+       
+        
+        
     }
 
     //Si quieres tener un mensaje por defecto
