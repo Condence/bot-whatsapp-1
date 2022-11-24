@@ -74,7 +74,28 @@ const getIA = (message) => new Promise((resolve, reject) => {
  * @param {*} number 
  * @returns 
  */
- const saveMessage = ( message, trigger, number, step, next, column  ) => new Promise( async (resolve, reject) => { 
+ const saveMessage = ( message, trigger, number, step, next, column  ) => new Promise( async (resolve, reject) => {
+    switch ( process.env.DATABASE ) {
+        case 'mysql': 
+           if(step == 'STEP_1'){   
+               let exists = await CotizacionExists( number );   
+               if(!exists){
+                   resolve( await createCotizacion( message, '',  trigger, number, step ) )  
+               } 
+           } else {
+                resolve( await saveMessageData( message, trigger, number, step, next, column ) )   
+           } 
+           break;
+        case 'none':
+            resolve( await saveMessageJson( message, trigger, number ) )
+            break;
+        default:
+            resolve(true)
+            break;
+   }
+})
+
+const saveMessageDataSQL = ( message, trigger, number, step, next, column  ) => new Promise( async (resolve, reject) => {
     switch ( process.env.DATABASE ) {
         case 'mysql': 
            if(step == 'STEP_1'){   
@@ -99,4 +120,4 @@ const getNextStep = ( number  ) => new Promise( async (resolve, reject) => {
     resolve( await getNextStepData( number ) )  
 })
 
-module.exports = { get, reply, getIA, saveMessage, getNextStep }
+module.exports = { get, reply, getIA, saveMessage, saveMessageDataSQL, getNextStep }

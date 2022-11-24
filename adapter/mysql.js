@@ -65,8 +65,7 @@ saveMessageMysql = ( message, date, trigger, number ) => new Promise((resolve,re
                 //         }, 150)
                 //     })
                 // }
-            }
-            console.log('Saved') 
+            } 
             resolve(results)
         })
     } catch (error) {
@@ -75,13 +74,12 @@ saveMessageMysql = ( message, date, trigger, number ) => new Promise((resolve,re
 })
 
 createCotizacion = ( message, date, trigger, number, step) => new Promise((resolve,reejct) => { 
-    try {
+    try { 
         connection.query(
         `INSERT INTO cotizacion  `+"(`usuario`, `step`)"+` VALUES ('${number}', 'STEP_2')` , (error, results) => {
             if(error) {  
                 console.log('DEBES DE CREAR LA TABLA DE MESSAGE') 
-            }
-            console.log('Saved') 
+            } 
             resolve(results)
         })
     } catch (error) {
@@ -131,8 +129,7 @@ saveMessageData = ( message, trigger, number, step = null, next ) => new Promise
                 `UPDATE ${DATABASE_NAME}.cotizacion SET ${step} = '${message}', step = '${next}'  WHERE usuario = '${number}' AND step != "GRACIAS"` , (error, results) => {
                     if(error) {
                        console.log(error); 
-                    }
-                    console.log('Saved') 
+                    } 
                     resolve(results)
                 })
         } else {

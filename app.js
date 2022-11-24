@@ -14,7 +14,7 @@ const { connectionReady, connectionLost } = require('./controllers/connection')
 const { saveMedia } = require('./controllers/save')
 const { getMessages, responseMessages, bothResponse } = require('./controllers/flows')
 const { sendMedia, sendMessage, lastTrigger, sendMessageButton, readChat } = require('./controllers/send')
-const { getNextStep, saveMessage} = require('./adapter/index')
+const { getNextStep, saveMessage, saveMessageDataSQL} = require('./adapter/index')
 const app = express();
 app.use(cors())
 app.use(express.json())
@@ -111,37 +111,58 @@ const listenMessage = () => client.on('message', async msg => {
         const array = [1,2,3,4];
         const next_step = await getNextStep(number); 
         let response = await responseMessages(next_step.step);
-        let error = false;
-        console.log(response);
-        if(next_step.step == "STEP_2"){ 
+        let error = false; 
+        if(next_step.step == "STEP_2") {
             if(array.some(e=>message.includes(e))){ 
                 if(message == 1){
-                    await saveMessage(message,  null, number, next_step.step, "STEP_3_1");
-               } 
+                    await saveMessageDataSQL(message,  null, number, next_step.step, "STEP_3_1");
+                } 
+                if(message == 2){
+                    await saveMessageDataSQL(message,  null, number, next_step.step, "STEP_3_3_1"); 
+                    response = await responseMessages("STEP_3_3"); 
+                    await sendMessage(client, from, response.replyMessage); 
+                } 
+                if(message == 3){
+                    await saveMessageDataSQL(message,  null, number, next_step.step, "STEP_3_4_1"); 
+                    response = await responseMessages("STEP_3_4"); 
+                    await sendMessage(client, from, response.replyMessage); 
+                } 
+                if(message == 4){
+                    await saveMessageDataSQL(message,  null, number, next_step.step, "STEP_3_5_1"); 
+                    response = await responseMessages("STEP_3_5"); 
+                    await sendMessage(client, from, response.replyMessage); 
+                } 
             } else {
                 error = true;
                 const response = await responseMessages("ERROR_STEP_3_1");   
                 await sendMessage(client, from, response.replyMessage); 
             }
-        }  else {
+        } else {
             if(next_step.step == "STEP_3_1"){
                 if(message == 1){
-                    await saveMessage(message,  null, number, next_step.step, "STEP_3_1_1");
+                    await saveMessageDataSQL(message,  null, number, next_step.step, "STEP_3_1_1");
                     let response = await responseMessages("STEP_3_1_1");
                     await sendMessage(client, from, response.replyMessage);
                 } else {
-                    await saveMessage(message,  null, number, next_step.step, response.next);
+                    if(message == 2){
+                        await saveMessageDataSQL(message,  null, number, next_step.step, "STEP_3_2_1");
+                        let response = await responseMessages("STEP_3_2_1");
+                        await sendMessage(client, from, response.replyMessage);
+                    } else {
+                        await saveMessageDataSQL(message,  null, number, response.column, response.next);
+                    }
+                     
                 }
             } else { 
                 if(next_step.step != "STEP_2"){
                     let response = await responseMessages(next_step.step); 
-                    await saveMessage(message,  null, number, next_step.step, response.next, response.column );
+                    await saveMessageDataSQL(message,  null, number, response.column, response.next, response.column );
                 }    
             }
         }
 
         response = await responseMessages(response.next);
-      
+        
         if(!error){
             await sendMessage(client, from, response.replyMessage);
         } 
