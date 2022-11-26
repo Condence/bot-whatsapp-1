@@ -1,8 +1,7 @@
 const fs = require('fs')
 const { sendMessage } = require('../controllers/send')
 
-const sendMessagePost = (req, res) => {
-    console.log('asdasdasdasdasd')
+const sendMessagePost = (req, res) => { 
     const { message, number } = req.body
     const client = req.clientWs || null;
     sendMessage(client, number, message)

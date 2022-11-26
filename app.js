@@ -23,7 +23,8 @@ const server = require('http').Server(app)
 
 const port = process.env.PORT || 3000
 var client;
-app.use('/', require('./routes/web'))
+app.use('/', require('./routes/web'));
+app.use('/cotizaciones', require('./routes/cotizaciones'));
 
 /**
  * Escuchamos cuando entre un mensaje

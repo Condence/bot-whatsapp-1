@@ -141,4 +141,54 @@ saveMessageData = ( message, trigger, number, step = null, next ) => new Promise
     }
 })
 
-module.exports = {getData, getReply, saveMessageMysql, CotizacionExists, createCotizacion, getNextStepData, saveMessageData}
+getAll = (page, limit) => { 
+    off = (page - 1)*limit ;
+    row = limit;
+    let total = 0;
+    return new Promise((resolve) => {
+        connection.query(
+            `SELECT COUNT(*) as total FROM cotizacion` , (error, results) => {
+                 
+                total = results[0].total;
+        })
+
+      connection.query(
+        'SELECT * FROM cotizacion LIMIT '+off+', '+row+'', 
+        (error, result) => { 
+            if (error) return reject(error);
+  
+            if (result) {  
+                let data = {
+                    rows: result,
+                    total: total
+                }
+                data.rows = data.rows.map(object => { 
+                    let tipo; 
+                    switch (object.STEP_2) {
+                        case '1':
+                            tipo = "Planear tu retiro";
+                            break;
+                        case '2':
+                            tipo = "Hacer un esquema de ahorro para la educación de tus hijos";
+                            break; 
+                        case '3':
+                            tipo = "Ahorrar para una hipoteca, comprar el coche de tus sueños u otros";
+                            break; 
+                        case '4':
+                            tipo = "Tener independencia económica en cualquier momento ";
+                            break; 
+                        default:
+                            tipo = 'NA';
+                            break;
+                    }
+                    return {...object, tipo: tipo};
+                });
+                resolve(data); 
+            }
+  
+          return resolve(false);
+        });
+    }); 
+};
+
+module.exports = {getData, getReply, saveMessageMysql, CotizacionExists, createCotizacion, getNextStepData, saveMessageData, getAll}
