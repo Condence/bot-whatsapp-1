@@ -30,6 +30,7 @@
   },
   "license": "ISC",
   "dependencies": {
+    "@formulajs/formulajs": "^3.1.7",
     "@google-cloud/dialogflow": "^5.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.1",
@@ -44,7 +45,8 @@
     "socket.io": "^4.5.1",
     "stormdb": "^0.6.0",
     "whatsapp-web.js": "^1.18.3",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xlsx-calc": "^0.7.7"
   },
   "devDependencies": {
     "pm2": "^5.2.0",
