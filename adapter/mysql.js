@@ -1,11 +1,13 @@
 const {connection} = require('../config/mysql')
 const DATABASE_NAME = process.env.SQL_DATABASE || 'db_test'
-var Excel = require('exceljs');
 
-var XLSX_CALC = require('xlsx-calc');
 
-// load your calc functions lib
-var formulajs = require('@formulajs/formulajs');
+const { GoogleSpreadsheet } = require('google-spreadsheet');
+const creds = require('../nodesheets-370104-05a1777fbf5f.json');  
+const doc = new GoogleSpreadsheet('1ykmNwd_9vxKCpwhoPVIQyze9Jg7TvBua72CS0or0ALI');
+const axios = require('axios'); 
+const fs = require('fs');
+ 
 
 getData = (message = '', callback) => connection.query(
     `SELECT * FROM ${DATABASE_NAME}.initial WHERE keywords LIKE '%${message}%'  LIMIT 1`,
@@ -198,6 +200,7 @@ getAll = (page, limit) => {
 };
 
 let cotizacion = {
+    id: '',
     nombre: '',
     caracteristicas: '',
     edad: '',
@@ -205,66 +208,117 @@ let cotizacion = {
     ajuste: '',
     plazo: '' 
 }
-procesarCotizaciones = () => new Promise((resolve,reejct) => {
-    try { 
-      
+
+
+ procesarCotizaciones = (   ) => new Promise( async (resolve, reject) => { 
+    try {
         connection.query(
-            'SELECT * FROM cotizacion WHERE Procesado = 0 LIMIT 1' , (error, results) => {
-           
-                if(error) {
-                    console.log(error); 
-                } else {
-                    if(results[0].STEP_2 == 1){
+            'SELECT * FROM `cotizacion` WHERE NOT EXISTS (SELECT * FROM `cotizacion` WHERE `Procesado` = 2 LIMIT 1) AND `Procesado` = 0 LIMIT 1' , (error, results) => { 
+            if(error) {
+                console.log(error); 
+            } else {
+                if(results){
+                    connection.query(
+                        `UPDATE ${DATABASE_NAME}.cotizacion SET Procesado = 2 WHERE id = '${results[0].id}'  ` , (error, results2) => {
+                            if(error) {
+                               console.log(error); 
+                            } 
+                            resolve(results)
+                        })
+    
+                    if(results[0].STEP_2 == 1 || results[0].STEP_2 == 2 || results[0].STEP_2 == 3 || results[0].STEP_2 == 4){
                         switch (results[0].STEP_3_1) {
                             case "1":
                                 cotizacion.caracteristicas = 'Fideicomiso Art. 151 (Antes Art. 176)';
-                              break;
+                                break;
                             case "2":
                                 cotizacion.caracteristicas = 'Art. 93 (Antes Art. 109)';
                                 break; 
+                            default:
+                                cotizacion.caracteristicas = 'Fideicomiso Art. 151 (Antes Art. 176)';
+                                break;
                         } 
                         cotizacion.nombre = results[0].STEP1;
                         cotizacion.edad = results[0].STEP3;
-                        cotizacion.plazo = results[0].STEP4;
+                        if(results[0].STEP_2 == 4){
+                            cotizacion.plazo = 25;
+                        } else {
+                            cotizacion.plazo = results[0].STEP4;
+                        }
                         cotizacion.aportaciones = results[0].STEP5; 
                         switch (results[0].STEP6) {
                             case "1":
                                 cotizacion.ajuste = 'Si';
-                              break;
+                                break;
                             case "2":
                                 cotizacion.ajuste = 'No';
                                 break; 
                         }   
-                    } 
-                    excelOp();
+                    }  
+                    excelOp().then((result) => {
+                        resolve(results) 
+                    });
                 }
-                resolve(results)
+                 
+            } 
         })
-      
+    } catch (error) {
+        
+    }
+})
+ 
+const excelOp = (   ) => new Promise( async (resolve, reject) => { 
+    await doc.useServiceAccountAuth(creds);
+ 
+    await doc.loadInfo();
+    const worksheet = doc.sheetsByIndex[0]; 
+    await worksheet.loadCells('D7:Q7');
+    await worksheet.loadCells('D12:H12');
+    await worksheet.loadCells('T7:W7');
+    await worksheet.loadCells('D15:H15');
+    await worksheet.loadCells('K12:O12');
+    await worksheet.loadCells('K15:O15');
+    await worksheet.loadCells('T12:X12');
+    let nombre = worksheet.getCellByA1('D7:Q7').value = cotizacion.nombre;
+    let edad = worksheet.getCellByA1('T7:W7').value = cotizacion.edad;
+    let aportaciones = worksheet.getCellByA1('D12:H12').value = parseInt(cotizacion.aportaciones);
+    let plazo = worksheet.getCellByA1('D15:H15').value = parseInt(cotizacion.plazo);
+    let periodicidad = worksheet.getCellByA1('K12:O12').value = "Mensual";
+    let inflacion = worksheet.getCellByA1('K15:O15').value = cotizacion.ajuste;
+    let plan = worksheet.getCellByA1('T12:X12').value = cotizacion.caracteristicas;
+    
+ 
+    await worksheet.saveUpdatedCells();
+
+    
+    axios({
+        method: "get",
+        url: "https://docs.google.com/spreadsheets/d/1ykmNwd_9vxKCpwhoPVIQyze9Jg7TvBua72CS0or0ALI/export?format=pdf",
+        responseType: "stream"
+    }).then(function (response) {
+        response.data.pipe(fs.createWriteStream("mediaSend/file.pdf"));
+        resolve('Saved');
+    });
+ 
+    
+ 
+});
+
+changeStatusData = ( id ) => new Promise((resolve,reejct) => { 
+ 
+    try { 
+       
+    connection.query(
+        `UPDATE ${DATABASE_NAME}.cotizacion SET Procesado = 1  WHERE id = '${id}'` , (error, results) => {
+            if(error) {
+                console.log(error); 
+            } 
+            resolve(results)
+        })
+     
          
     } catch (error) {
         
     }
 })
-
-async function excelOp() {
-    console.log(cotizacion);
-    let workbook = new Excel.Workbook();
-    workbook = await workbook.xlsx.readFile('./optimaxx-plus.xlsx').then(function() {
-  
-      var worksheet = workbook.getWorksheet('OptiMaxx plus');
-      worksheet.getCell('D7:Q7').value = cotizacion.nombre; //Nombre
-      worksheet.getCell('T7:W7').value = cotizacion.edad; //Edad
-      worksheet.getCell('T12:X12').value = cotizacion.caracteristicas; //Caracteristicas
-      worksheet.getCell('D12:H12').value = parseInt(cotizacion.aportaciones);  // Cantidad mensual  
-      worksheet.getCell('D15:H15').value = parseInt(cotizacion.plazo);  //  Plazo
-      worksheet.getCell('K15:O15').value = cotizacion.ajuste;  // Ajuste inflacion 
- 
-
- 
-       workbook.xlsx.writeFile('export2.xlsx');
-     
-  });
-}
-
-module.exports = {getData, getReply, saveMessageMysql, CotizacionExists, createCotizacion, getNextStepData, saveMessageData, getAll, procesarCotizaciones}
+module.exports = {getData, getReply, saveMessageMysql, CotizacionExists, createCotizacion, getNextStepData, saveMessageData, getAll, procesarCotizaciones, changeStatusData}

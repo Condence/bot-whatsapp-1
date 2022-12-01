@@ -1,4 +1,4 @@
-const { getData, getReply, saveMessageMysql, CotizacionExists, createCotizacion, getNextStepData, saveMessageData, procesarCotizaciones } = require('./mysql')
+const { getData, getReply, saveMessageMysql, CotizacionExists, createCotizacion, getNextStepData, saveMessageData, procesarCotizaciones, changeStatusData } = require('./mysql')
 const { saveMessageJson } = require('./jsonDb')
 const { getDataIa } = require('./diaglogflow')
 const  stepsInitial = require('../flow/initial.json')
@@ -125,4 +125,9 @@ const procesar = ( ) => new Promise( async (resolve, reject) => {
     resolve( await procesarCotizaciones() )  
 })
 
-module.exports = { get, reply, getIA, saveMessage, saveMessageDataSQL, getNextStep, procesar}
+const changeStatus = (id) => new Promise( async (resolve, reject) => { 
+   
+    resolve( await changeStatusData(id) )  
+})
+
+module.exports = { get, reply, getIA, saveMessage, saveMessageDataSQL, getNextStep, procesar, changeStatus}

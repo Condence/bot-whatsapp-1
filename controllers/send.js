@@ -16,13 +16,15 @@ const { saveMessage } = require('../adapter')
  */
 
 const sendMedia = (client, number = null, fileName = null) => {
+    console.log(number); 
     if(!client) return cosnole.error("El objeto cliente no está definido.");
     try {
         number = cleanNumber(number || 0)
         const file = `${DIR_MEDIA}/${fileName}`;
-        if (fs.existsSync(file)) {
-            const media = MessageMedia.fromFilePath(file);
+        if (fs.existsSync(file)) { 
+            const media = MessageMedia.fromFilePath(file); 
             client.sendMessage(number, media, { sendAudioAsVoice: true });
+           
         }
     } catch(e) {
         throw e;
