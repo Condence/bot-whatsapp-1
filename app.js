@@ -26,6 +26,7 @@ var client;
 app.use('/', require('./routes/web'));
 app.use('/cotizaciones', require('./routes/cotizaciones'));
 
+var cron = require('node-cron');
 /**
  * Escuchamos cuando entre un mensaje
  */
@@ -168,16 +169,12 @@ const listenMessage = () => client.on('message', async msg => {
         
         if(!error){ 
             if(response.option_key == "GRACIAS") { 
-                let responseProcesar = procesar().then((result) => {  
-                    if(result[0].step == 'GRACIAS'){  
-                        changeStatus(result[0].id).then((result2) => { 
-                            setTimeout(()=>{sendMedia(client, result[0].usuario, "file.pdf"); }, 1000);
-                            
-                        }); 
-                    } 
-                });  
-            }  
-            await sendMessage(client, from, response.replyMessage);
+                await sendMessage(client, from, response.replyMessage);
+                 
+            }  else {
+                await sendMessage(client, from, response.replyMessage);
+            }
+             
              
         } 
        
@@ -203,6 +200,19 @@ const listenMessage = () => client.on('message', async msg => {
     
 });
 
+async function Procesar(){
+    let responseProcesar = procesar().then((result) => {   
+        if(result[0].step == 'GRACIAS'){  
+            changeStatus(result[0].id).then((result2) => { 
+                setTimeout(()=>{
+                    sendMedia(client, result[0].usuario, "file.pdf"); 
+                    Procesar();
+                }, 1000);
+                
+            }); 
+        } 
+    });  
+}
 
 
 client = new Client({
@@ -246,6 +256,11 @@ if (process.env.DATABASE === 'mysql') {
 
 server.listen(port, () => {
     console.log(`El server esta listo por el puerto ${port}`);
+
+    cron.schedule('*/2 * * * *', () => { 
+        console.log("Procesando....");
+        Procesar();
+    }); 
 })
 checkEnvFile();
  

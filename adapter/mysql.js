@@ -132,14 +132,25 @@ getNextStepData = (number) => {
 
 saveMessageData = ( message, trigger, number, step = null, next ) => new Promise((resolve,reejct) => { 
     try { 
-        if(step){
-            connection.query(
-                `UPDATE ${DATABASE_NAME}.cotizacion SET ${step} = '${message}', step = '${next}'  WHERE usuario = '${number}' AND step != "GRACIAS"` , (error, results) => {
-                    if(error) {
-                       console.log(error); 
-                    } 
-                    resolve(results)
-                })
+        if(step){ 
+            if(step == 'STEP6'){
+                connection.query(
+                    `UPDATE ${DATABASE_NAME}.cotizacion SET ${step} = '${message}', step = '${next}', COMPLETADO = 1   WHERE usuario = '${number}' AND step != "GRACIAS"` , (error, results) => {
+                        if(error) {
+                           console.log(error); 
+                        } 
+                        resolve(results)
+                    })
+            } else {
+                connection.query(
+                    `UPDATE ${DATABASE_NAME}.cotizacion SET ${step} = '${message}', step = '${next}'  WHERE usuario = '${number}' AND step != "GRACIAS"` , (error, results) => {
+                        if(error) {
+                           console.log(error); 
+                        } 
+                        resolve(results)
+                    })
+            }
+             
         } else {
             resolve()
         }
@@ -213,53 +224,48 @@ let cotizacion = {
  procesarCotizaciones = (   ) => new Promise( async (resolve, reject) => { 
     try {
         connection.query(
-            'SELECT * FROM `cotizacion` WHERE NOT EXISTS (SELECT * FROM `cotizacion` WHERE `Procesado` = 2 LIMIT 1) AND `Procesado` = 0 LIMIT 1' , (error, results) => { 
+            'SELECT * FROM `cotizacion` WHERE NOT EXISTS (SELECT * FROM `cotizacion` WHERE `Procesado` = 2 LIMIT 1) AND `Procesado` = 0 AND COMPLETADO = 1 LIMIT 1;' , (error, results) => { 
             if(error) {
                 console.log(error); 
             } else {
-                if(results){
-                    connection.query(
-                        `UPDATE ${DATABASE_NAME}.cotizacion SET Procesado = 2 WHERE id = '${results[0].id}'  ` , (error, results2) => {
-                            if(error) {
-                               console.log(error); 
-                            } 
-                            resolve(results)
-                        })
-    
-                    if(results[0].STEP_2 == 1 || results[0].STEP_2 == 2 || results[0].STEP_2 == 3 || results[0].STEP_2 == 4){
-                        switch (results[0].STEP_3_1) {
-                            case "1":
-                                cotizacion.caracteristicas = 'Fideicomiso Art. 151 (Antes Art. 176)';
-                                break;
-                            case "2":
-                                cotizacion.caracteristicas = 'Art. 93 (Antes Art. 109)';
-                                break; 
-                            default:
-                                cotizacion.caracteristicas = 'Fideicomiso Art. 151 (Antes Art. 176)';
-                                break;
-                        } 
-                        cotizacion.nombre = results[0].STEP1;
-                        cotizacion.edad = results[0].STEP3;
-                        if(results[0].STEP_2 == 4){
-                            cotizacion.plazo = 25;
-                        } else {
-                            cotizacion.plazo = results[0].STEP4;
-                        }
-                        cotizacion.aportaciones = results[0].STEP5; 
-                        switch (results[0].STEP6) {
-                            case "1":
-                                cotizacion.ajuste = 'Si';
-                                break;
-                            case "2":
-                                cotizacion.ajuste = 'No';
-                                break; 
-                        }   
+                if(results.length > 0) {
+                    if(results){
+                        connection.query(`UPDATE ${DATABASE_NAME}.cotizacion SET Procesado = 2 WHERE id = ${results[0].id}` , (error, result2) => {
+                            if(results[0].STEP_2 == 1 || results[0].STEP_2 == 2 || results[0].STEP_2 == 3 || results[0].STEP_2 == 4){
+                                switch (results[0].STEP_3_1) {
+                                    case "1":
+                                        cotizacion.caracteristicas = 'Fideicomiso Art. 151 (Antes Art. 176)';
+                                        break;
+                                    case "2":
+                                        cotizacion.caracteristicas = 'Art. 93 (Antes Art. 109)';
+                                        break; 
+                                    default:
+                                        cotizacion.caracteristicas = 'Fideicomiso Art. 151 (Antes Art. 176)';
+                                        break;
+                                } 
+                                cotizacion.nombre = results[0].STEP1;
+                                cotizacion.edad = results[0].STEP3;
+                                if(results[0].STEP_2 == 4){
+                                    cotizacion.plazo = 25;
+                                } else {
+                                    cotizacion.plazo = results[0].STEP4;
+                                }
+                                cotizacion.aportaciones = results[0].STEP5; 
+                                switch (results[0].STEP6) {
+                                    case "1":
+                                        cotizacion.ajuste = 'Si';
+                                        break;
+                                    case "2":
+                                        cotizacion.ajuste = 'No';
+                                        break; 
+                                }   
+                            }  
+                            excelOp().then((result) => { 
+                                resolve(results) 
+                            });
+                        }) 
                     }  
-                    excelOp().then((result) => {
-                        resolve(results) 
-                    });
-                }
-                 
+                }  
             } 
         })
     } catch (error) {
@@ -290,26 +296,31 @@ const excelOp = (   ) => new Promise( async (resolve, reject) => {
  
     await worksheet.saveUpdatedCells();
 
+    let res = await downloadFile();
     
-    axios({
+    if(res){
+        resolve("Respolve"); 
+    }
+});
+async function downloadFile(){ 
+    const response = await axios({
         method: "get",
         url: "https://docs.google.com/spreadsheets/d/1ykmNwd_9vxKCpwhoPVIQyze9Jg7TvBua72CS0or0ALI/export?format=pdf",
         responseType: "stream"
-    }).then(function (response) {
+    }).then(function (response) { 
         response.data.pipe(fs.createWriteStream("mediaSend/file.pdf"));
-        resolve('Saved');
+           
+         
     });
+    return true;
+}
  
-    
- 
-});
-
 changeStatusData = ( id ) => new Promise((resolve,reejct) => { 
  
     try { 
        
     connection.query(
-        `UPDATE ${DATABASE_NAME}.cotizacion SET Procesado = 1  WHERE id = '${id}'` , (error, results) => {
+        `UPDATE ${DATABASE_NAME}.cotizacion SET Procesado = 3 WHERE id = '${id}'` , (error, results) => {
             if(error) {
                 console.log(error); 
             } 
