@@ -258,6 +258,9 @@ let cotizacion = {
                                     case "2":
                                         cotizacion.ajuste = 'No';
                                         break; 
+                                    default:
+                                        cotizacion.ajuste = 'Si';
+                                        break; 
                                 }   
                             }  
                             excelOp().then((result) => { 
