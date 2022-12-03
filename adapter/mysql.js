@@ -311,7 +311,7 @@ async function downloadFile(){
         url: "https://docs.google.com/spreadsheets/d/1ykmNwd_9vxKCpwhoPVIQyze9Jg7TvBua72CS0or0ALI/export?format=pdf",
         responseType: "stream"
     }).then(function (response) { 
-        response.data.pipe(fs.createWriteStream("mediaSend/file.pdf"));
+        response.data.pipe(fs.createWriteStream("mediaSend/corrida.pdf"));
            
          
     });

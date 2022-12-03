@@ -16,12 +16,14 @@ const { getMessages, responseMessages, bothResponse } = require('./controllers/f
 const { sendMedia, sendMessage, lastTrigger, sendMessageButton, readChat } = require('./controllers/send')
 const { getNextStep, saveMessage, saveMessageDataSQL, procesar, changeStatus} = require('./adapter/index')
 const app = express();
+const axios = require('axios');
+const localtunnel = require('localtunnel');
 app.use(cors())
 app.use(express.json())
 const MULTI_DEVICE = process.env.MULTI_DEVICE || 'true';
 const server = require('http').Server(app)
 
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 8686
 var client;
 app.use('/', require('./routes/web'));
 app.use('/cotizaciones', require('./routes/cotizaciones'));
@@ -170,7 +172,7 @@ const listenMessage = () => client.on('message', async msg => {
         if(!error){ 
             if(response.option_key == "GRACIAS") { 
                 await sendMessage(client, from, response.replyMessage);
-                 
+                //await addCorrida(result[0]);
             }  else {
                 await sendMessage(client, from, response.replyMessage);
             }
@@ -200,16 +202,35 @@ const listenMessage = () => client.on('message', async msg => {
     
 });
 
+async function addCorrida(user) {
+    try {
+        const response = await axios.post('https://api.investu.automaticco.mx/api/admin/whatsapp/corrida', user)
+        .then(function (response) {
+            console.log(response);
+        })
+        .catch(function (error) {
+            console.log(error);
+        });
+    
+    } catch (error) {
+
+    } 
+  }
 async function Procesar(){
+    let response = await responseMessages('CORRIDA');
     let responseProcesar = procesar().then((result) => {   
         if(result[0].step == 'GRACIAS'){  
-            changeStatus(result[0].id).then((result2) => { 
+            changeStatus(result[0].id).then( (result2) => { 
                 setTimeout(()=>{
-                    sendMedia(client, result[0].usuario, "file.pdf"); 
-                    Procesar();
-                }, 1000);
-                
+                    sendMedia(client, result[0].usuario, "corrida.pdf"); 
+                    result[0].telefono = result[0].usuario;
+                    addCorrida(result[0]);
+                }, 1000); 
             }); 
+            setTimeout(()=>{
+                sendMessage(client, result[0].usuario, response.replyMessage); 
+                Procesar();
+            }, 4000);
         } 
     });  
 }
@@ -230,6 +251,7 @@ client.on('qr', qr => generateImage(qr, () => {
 client.on('ready', (a) => {
         connectionReady()
         listenMessage()
+        const tunnel = localtunnel({ port: port, subdomain: 'investubotWhatsapplt'});
         // socketEvents.sendStatus(client)
 });
 
@@ -254,9 +276,10 @@ if (process.env.DATABASE === 'mysql') {
     mysqlConnection.connect()
 }
 
+
 server.listen(port, () => {
     console.log(`El server esta listo por el puerto ${port}`);
-
+  
     cron.schedule('*/2 * * * *', () => { 
         console.log("Procesando....");
         Procesar();

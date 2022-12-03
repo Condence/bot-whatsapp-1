@@ -10,6 +10,7 @@ const axios = require('axios');
 const fs = require('fs');
 
 router.get("/all", async function (req, res) { 
+  console.log("ENTRA");
   let response = await getAll(req.query.page, req.query.limit);
   res.send(response);
 });
