@@ -27,7 +27,7 @@ const port = process.env.PORT || 8686
 var client;
 app.use('/', require('./routes/web'));
 app.use('/cotizaciones', require('./routes/cotizaciones'));
-
+const DIR_MEDIA = `${__dirname}/mediaSend`;
 var cron = require('node-cron');
 /**
  * Escuchamos cuando entre un mensaje
@@ -113,7 +113,7 @@ const listenMessage = () => client.on('message', async msg => {
         return
     } else { 
         const array = [1,2,3,4];
-        const next_step = await getNextStep(number); 
+        let next_step = await getNextStep(number); 
        
         let response = await responseMessages(next_step.step);
  
@@ -160,10 +160,23 @@ const listenMessage = () => client.on('message', async msg => {
                      
                 }
             } else { 
-                if(next_step.step != "STEP_2"){
-                    let response = await responseMessages(next_step.step); 
-                    await saveMessageDataSQL(message,  null, number, response.column, response.next, response.column );
-                }    
+                const step_plazos = ["STEP_3_1_4", "STEP_3_2_3", "STEP_3_3_4", "STEP_3_4_3", "STEP_3_5_3"];  
+                if(step_plazos.some(e=>next_step.step.includes(e))){ 
+                    if(parseInt(message) >= 5 && parseInt(message) <= 25) {
+                        let response = await responseMessages(next_step.step);  
+                        await saveMessageDataSQL(message,  null, number, response.column, response.next, response.column );  
+                    } else {
+                        error = true;
+                        const response = await responseMessages("ERROR_STEP_PLAZO");   
+                        await sendMessage(client, from, response.replyMessage); 
+                        console.log("ERROR");
+                    }
+                } else {
+                    if(next_step.step != "STEP_2"){ 
+                        let response = await responseMessages(next_step.step);  
+                        await saveMessageDataSQL(message,  null, number, response.column, response.next, response.column );
+                    } 
+                } 
             }
         }
 
@@ -202,11 +215,11 @@ const listenMessage = () => client.on('message', async msg => {
     
 });
 
-async function addCorrida(user) {
+async function addCorrida(file, user) {
     try {
-        const response = await axios.post('https://api.investu.automaticco.mx/api/admin/whatsapp/corrida', user)
-        .then(function (response) {
-            console.log(response);
+        const response = await axios.post('https://api.investu.com.mx/api/admin/whatsapp/corrida', user)
+        .then(function (response) {  
+            uploadFile(response.data.data.id, file); 
         })
         .catch(function (error) {
             console.log(error);
@@ -215,26 +228,76 @@ async function addCorrida(user) {
     } catch (error) {
 
     } 
-  }
+}
+async function addCorrida2(file, user) {
+    try {
+        const response = await axios.post('http://192.168.1.67:8002/api/admin/whatsapp/corrida', user)
+        .then(function (response) { 
+         
+        })
+        .catch(function (error) {
+            console.log(error);
+        });
+    
+    } catch (error) {
+
+    } 
+    
+}
+async function uploadFile(id, file) {
+    try {
+        console.log(id);
+        console.log(file);
+        const FormData = require('form-data'); 
+
+        const form = new FormData();
+        form.append('file', fs.createReadStream(file));
+       
+        
+        const response = await axios.post('https://api.investu.com.mx/api/admin/whatsapp/corrida/file/'+id, form, {
+            headers: { 
+                "Content-Type": "multipart/form-data",
+                "Content-Length": "3352"
+            }})
+        .then(function (response) { 
+         console.log(response);
+        })
+        .catch(function (error) {
+            console.log(error);
+        }); 
+    } catch (error) {
+
+    } 
+    
+}
 async function Procesar(){
     let response = await responseMessages('CORRIDA');
     let responseProcesar = procesar().then((result) => {   
         if(result[0].step == 'GRACIAS'){  
             changeStatus(result[0].id).then( (result2) => { 
-                setTimeout(()=>{
-                    sendMedia(client, result[0].usuario, "corrida.pdf"); 
+                setTimeout(()=>{ 
+                    let name = result[0].STEP1.split(' ').join('_');
+                    const file = `mediaSend/corrida_${name}.pdf`;
+                    fs.renameSync("mediaSend/corrida.pdf", file);
+                    sendMedia(client, result[0].usuario, `corrida_${name}.pdf`); 
                     result[0].telefono = result[0].usuario;
-                    addCorrida(result[0]);
-                }, 1000); 
+                     
+                    addCorrida2(file, result[0]);
+                  
+                }, 1000);
             }); 
             setTimeout(()=>{
+                
+                let name = result[0].STEP1.split(' ').join('_'); 
+                const file = `mediaSend/corrida_${name}.pdf`;
+                addCorrida(file, result[0]);
+                
                 sendMessage(client, result[0].usuario, response.replyMessage); 
                 Procesar();
             }, 4000);
         } 
     });  
-}
-
+} 
 
 client = new Client({
         authStrategy: new LocalAuth(),
@@ -280,7 +343,7 @@ if (process.env.DATABASE === 'mysql') {
 server.listen(port, () => {
     console.log(`El server esta listo por el puerto ${port}`);
   
-    cron.schedule('*/2 * * * *', () => { 
+    cron.schedule('*/1 * * * *', () => { 
         console.log("Procesando....");
         Procesar();
     }); 

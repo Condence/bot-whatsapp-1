@@ -221,7 +221,7 @@ let cotizacion = {
 }
 
 
- procesarCotizaciones = (   ) => new Promise( async (resolve, reject) => { 
+procesarCotizaciones = (   ) => new Promise( async (resolve, reject) => { 
     try {
         connection.query(
             'SELECT * FROM `cotizacion` WHERE NOT EXISTS (SELECT * FROM `cotizacion` WHERE `Procesado` = 2 LIMIT 1) AND `Procesado` = 0 AND COMPLETADO = 1 LIMIT 1;' , (error, results) => { 
@@ -239,17 +239,19 @@ let cotizacion = {
                                     case "2":
                                         cotizacion.caracteristicas = 'Art. 93 (Antes Art. 109)';
                                         break; 
-                                    default:
+                                    case "151":
                                         cotizacion.caracteristicas = 'Fideicomiso Art. 151 (Antes Art. 176)';
+                                        break;
+                                    case "93":
+                                        cotizacion.caracteristicas = 'Art. 93 (Antes Art. 109)';
+                                        break; 
+                                    default:
+                                        cotizacion.caracteristicas = 'Art. 93 (Antes Art. 109)';
                                         break;
                                 } 
                                 cotizacion.nombre = results[0].STEP1;
-                                cotizacion.edad = results[0].STEP3;
-                                if(results[0].STEP_2 == 4){
-                                    cotizacion.plazo = 25;
-                                } else {
-                                    cotizacion.plazo = results[0].STEP4;
-                                }
+                                cotizacion.edad = results[0].STEP3; 
+                                cotizacion.plazo = results[0].STEP4;  
                                 cotizacion.aportaciones = results[0].STEP5; 
                                 switch (results[0].STEP6) {
                                     case "1":
@@ -276,6 +278,7 @@ let cotizacion = {
     }
 })
  
+ 
 const excelOp = (   ) => new Promise( async (resolve, reject) => { 
     await doc.useServiceAccountAuth(creds);
  
@@ -289,7 +292,7 @@ const excelOp = (   ) => new Promise( async (resolve, reject) => {
     await worksheet.loadCells('K15:O15');
     await worksheet.loadCells('T12:X12');
     let nombre = worksheet.getCellByA1('D7:Q7').value = cotizacion.nombre;
-    let edad = worksheet.getCellByA1('T7:W7').value = cotizacion.edad;
+    let edad = worksheet.getCellByA1('T7:W7').value = parseInt(cotizacion.edad);
     let aportaciones = worksheet.getCellByA1('D12:H12').value = parseInt(cotizacion.aportaciones);
     let plazo = worksheet.getCellByA1('D15:H15').value = parseInt(cotizacion.plazo);
     let periodicidad = worksheet.getCellByA1('K12:O12').value = "Mensual";
